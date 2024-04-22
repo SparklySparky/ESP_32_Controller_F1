@@ -5,9 +5,6 @@
 #include "hal/adc_types.h"
 
 
-//----- This file includes the all the structs for the car control initialization -----//
-
-
 typedef struct {
     adc_oneshot_chan_cfg_t chan_cfg;
 } car_control_init_t;
@@ -37,7 +34,7 @@ typedef struct {
 } car_interface_t;
 
 
-typedef struct {
+typedef struct __packed {
     uint16_t th_value;
     uint16_t st_value;
 } send_data_t;

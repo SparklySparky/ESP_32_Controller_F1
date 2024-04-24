@@ -15,7 +15,7 @@ void limiter_send_cb(void *arg, void *usr_data);
 
 static const char *TAG = "car control";
 
-/*----- Button configurations -----*/
+//----- Button configurations -----//
 button_config_t toggle_reading_btn = {
     .type = BUTTON_TYPE_GPIO,
     .short_press_time = BUTTON_SHORT_PRESS_TIME_MS,
@@ -43,10 +43,45 @@ button_config_t limiter_btn = {
     },
 };
 
-button_event_config_t limiter_btn_cfg = {
-    .event = BUTTON_SINGLE_CLICK,
+button_config_t st_offset_incr_btn = {
+    .type = BUTTON_TYPE_GPIO,
+    .short_press_time = BUTTON_SHORT_PRESS_TIME_MS,
+    .long_press_time = BUTTON_LONG_PRESS_TIME_MS,
+    .gpio_button_config = {
+        .gpio_num = STEERING_OFFSET_INCR_BTN_GPIO,
+        .active_level = 0,
+    },
 };
 
+button_config_t st_offset_decr_btn = {
+    .type = BUTTON_TYPE_GPIO,
+    .short_press_time = BUTTON_SHORT_PRESS_TIME_MS,
+    .long_press_time = BUTTON_LONG_PRESS_TIME_MS,
+    .gpio_button_config = {
+        .gpio_num = STEERING_OFFSET_DECR_BTN_GPIO,
+        .active_level = 0,
+    },
+};
+
+button_config_t th_coeff_incr_btn = {
+    .type = BUTTON_TYPE_GPIO,
+    .short_press_time = BUTTON_SHORT_PRESS_TIME_MS,
+    .long_press_time = BUTTON_LONG_PRESS_TIME_MS,
+    .gpio_button_config = {
+        .gpio_num = THROTTLE_COEFF_INCR_BTN_GPIO,
+        .active_level = 0,
+    },
+};
+
+button_config_t th_coeff_decr_btn = {
+    .type = BUTTON_TYPE_GPIO,
+    .short_press_time = BUTTON_SHORT_PRESS_TIME_MS,
+    .long_press_time = BUTTON_LONG_PRESS_TIME_MS,
+    .gpio_button_config = {
+        .gpio_num = THROTTLE_COEFF_DECR_BTN_GPIO,
+        .active_level = 0,
+    },
+};
 
 const car_interface_init_t car_interface_init = {
     .adc_oneshot_unit_init_cfg = {
@@ -89,68 +124,19 @@ car_interface_t car_interface = {
 
 adc_oneshot_unit_handle_t adc_handle;
 
+void buttons_init();
+void adc_chan_init();
+
 void car_control_read_init(void)
-{
-    // Initialize ADC unit config
-    adc_oneshot_unit_init_cfg_t init_cfg = car_interface.init->adc_oneshot_unit_init_cfg;
-
-    esp_err_t err = adc_oneshot_new_unit(&init_cfg, &adc_handle);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "ADC initialization failed");
-        return;
-    }
-
-    // Initialize channels config
-    adc_oneshot_chan_cfg_t throttle_chan_cfg = car_interface.throttle.init->chan_cfg;
-    adc_oneshot_chan_cfg_t steering_chan_cfg = car_interface.steering.init->chan_cfg;
-
-    // Initialize singular channels config & read
-    err = adc_oneshot_config_channel(adc_handle, car_interface.throttle.chan, &throttle_chan_cfg);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Throttle ADC channel configuration failed");
-        return;
-    }
-    
-    err = adc_oneshot_config_channel(adc_handle, car_interface.steering.chan, &steering_chan_cfg);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Steering ADC channel configuration failed");
-        return;
-    }
-
-    // Create and register the buttons & led
-    gpio_set_direction(LED_GPIO, GPIO_MODE_INPUT_OUTPUT);
-
-    button_handle_t toggle_btn_handle = iot_button_create(&toggle_reading_btn);
-    if (toggle_btn_handle == NULL) {
-        ESP_LOGE(TAG, "Button create failed");
-        return;
-    }
-
-    err = iot_button_register_event_cb(toggle_btn_handle, toggle_reading_cfg, read_data_long_click, NULL);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Button event registration failed");
-        return;
-    }
-
-    button_handle_t limiter_btn_handle = iot_button_create(&limiter_btn);
-    if (limiter_btn_handle == NULL) {
-        ESP_LOGE(TAG, "Button create failed");
-        return;
-    }
-
-    err = iot_button_register_event_cb(limiter_btn_handle, limiter_btn_cfg, limiter_send_cb, NULL);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Button event registration failed");
-        return;
-    }
-
-    ESP_LOGI(TAG, "Initialization completed");
+{   
+    buttons_init();
+    adc_chan_init();
 }
 
 void car_control_read(void)
 {
     send_data_t data_msg;
-    while(1) {
+    while(car_interface.reading_state == 1) {
         // Read the throttle values
         esp_err_t err = adc_oneshot_read(adc_handle, car_interface.throttle.chan, &car_interface.throttle.val);
         if (err != ESP_OK) {
@@ -189,6 +175,7 @@ void car_control_read(void)
 
         vTaskDelay(pdMS_TO_TICKS(250));
     }
+    vTaskDelete(NULL);
 }
 
 //----- Task Handle initialize -----//
@@ -216,7 +203,6 @@ void read_data_long_click(void *arg, void *usr_data)
         case 1:
             car_interface.reading_state = 0;
             gpio_set_level(LED_GPIO, 0);
-            vTaskDelete(read_data_task_handle);
             ESP_LOGI(TAG, "READING STOPPED");
             break;
     }
@@ -240,4 +226,110 @@ void limiter_send_cb(void *arg, void *usr_data)
             ESP_LOGI(TAG, "LIMITER REMOVED");
             break;
     }
+}
+
+
+void button_test_cb(void *arg, void *urs_data)
+{
+    ESP_LOGI(TAG, "PREMUTO");
+}
+
+//----- Initialization function -----//
+void buttons_init()
+{
+    // Create and register the buttons & led
+    gpio_set_direction(LED_GPIO, GPIO_MODE_INPUT_OUTPUT);
+
+    button_handle_t toggle_btn_handle = iot_button_create(&toggle_reading_btn);
+    if (toggle_btn_handle == NULL) {
+        ESP_LOGE(TAG, "Button create failed");
+        return;
+    }
+    esp_err_t err = iot_button_register_event_cb(toggle_btn_handle, toggle_reading_cfg, read_data_long_click, NULL);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Button event registration failed");
+        return;
+    }
+
+
+    button_handle_t limiter_btn_handle = iot_button_create(&limiter_btn);
+    if (limiter_btn_handle == NULL) {
+        ESP_LOGE(TAG, "Button create failed");
+        return;
+    }
+    err = iot_button_register_cb(limiter_btn_handle, BUTTON_SINGLE_CLICK, limiter_send_cb, NULL);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Button event registration failed");
+        return;
+    }
+
+
+    button_handle_t st_offset_incr_btn_handle = iot_button_create(&st_offset_incr_btn);
+    if (st_offset_incr_btn_handle == NULL) {
+        ESP_LOGE(TAG, "Button create failed");
+        return;
+    }
+    
+    err = iot_button_register_cb(st_offset_incr_btn_handle, BUTTON_SINGLE_CLICK, button_test_cb, NULL);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Button event registration failed");
+        return;
+    }
+    
+    /*
+    button_handle_t th_coeff_incr_btn_handle = iot_button_create(&th_coeff_incr_btn);
+    if (th_coeff_incr_btn_handle == NULL) {
+        ESP_LOGE(TAG, "Button create failed");
+        return;
+    }
+    err = iot_button_register_cb(th_coeff_incr_btn_handle, BUTTON_SINGLE_CLICK, button_test_cb, NULL);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Button event registration failed");
+        return;
+    }
+
+
+    button_handle_t th_coeff_decr_btn_handle = iot_button_create(&th_coeff_decr_btn);
+    if (th_coeff_decr_btn_handle == NULL) {
+        ESP_LOGE(TAG, "Button create failed");
+        return;
+    }
+    err = iot_button_register_cb(th_coeff_decr_btn_handle, BUTTON_SINGLE_CLICK, button_test_cb, NULL);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Button event registration failed");
+        return;
+    }
+    */
+
+    ESP_LOGI(TAG, "Buttons initialization completed");
+}
+
+void adc_chan_init()
+{
+    // Initialize ADC unit config
+    adc_oneshot_unit_init_cfg_t init_cfg = car_interface.init->adc_oneshot_unit_init_cfg;
+
+    esp_err_t err = adc_oneshot_new_unit(&init_cfg, &adc_handle);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "ADC initialization failed");
+        return;
+    }
+
+    // Initialize channels config
+    adc_oneshot_chan_cfg_t throttle_chan_cfg = car_interface.throttle.init->chan_cfg;
+    adc_oneshot_chan_cfg_t steering_chan_cfg = car_interface.steering.init->chan_cfg;
+
+    // Initialize singular channels config & read
+    err = adc_oneshot_config_channel(adc_handle, car_interface.throttle.chan, &throttle_chan_cfg);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Throttle ADC channel configuration failed");
+        return;
+    }
+    
+    err = adc_oneshot_config_channel(adc_handle, car_interface.steering.chan, &steering_chan_cfg);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Steering ADC channel configuration failed");
+        return;
+    }
+    ESP_LOGI(TAG, "adc channels initialization completed");
 }

@@ -31,6 +31,8 @@ typedef struct {
     car_control_t steering;
     int reading_state;
     int limiter_state;
+    int st_offset_state;
+    int th_coeff_state;
 } car_interface_t;
 
 

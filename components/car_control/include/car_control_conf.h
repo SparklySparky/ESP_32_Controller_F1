@@ -3,14 +3,14 @@
 
 // ----- GPIOs ----- //
 #define TOGGLE_BUTTON_GPIO                  GPIO_NUM_25
-#define LIMITER_BUTTON_GPIO                 GPIO_NUM_27
-#define LED_GPIO                            GPIO_NUM_26
+#define LIMITER_BUTTON_GPIO                 GPIO_NUM_26
+#define LED_GPIO                            GPIO_NUM_27
 
-#define STEERING_OFFSET_INCR_BTN_GPIO       GPIO_NUM_35
-#define STEERING_OFFSET_DECR_BTN_GPIO       GPIO_NUM_34
+#define STEERING_OFFSET_INCR_BTN_GPIO       GPIO_NUM_22
+#define STEERING_OFFSET_DECR_BTN_GPIO       GPIO_NUM_21
 
-#define THROTTLE_COEFF_INCR_BTN_GPIO        GPIO_NUM_39
-#define THROTTLE_COEFF_DECR_BTN_GPIO        GPIO_NUM_36
+#define THROTTLE_COEFF_INCR_BTN_GPIO        GPIO_NUM_19
+#define THROTTLE_COEFF_DECR_BTN_GPIO        GPIO_NUM_18
 
 
 

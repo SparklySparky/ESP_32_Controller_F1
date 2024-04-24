@@ -120,6 +120,8 @@ car_interface_t car_interface = {
     },
     .reading_state = 0,
     .limiter_state = 0,
+    .st_offset_state = 0,
+    .th_coeff_state = 0,
 };
 
 adc_oneshot_unit_handle_t adc_handle;
@@ -229,9 +231,14 @@ void limiter_send_cb(void *arg, void *usr_data)
 }
 
 
-void button_test_cb(void *arg, void *urs_data)
+void st_offset_cb(void *arg, void *usr_data)
 {
-    ESP_LOGI(TAG, "PREMUTO");
+    ESP_LOGI(TAG, "ST OFFSET SET");
+}
+
+void th_coeff_cb(void *arg, void *usr_data)
+{
+    ESP_LOGI(TAG, "TH COEFF SET");
 }
 
 //----- Initialization function -----//
@@ -276,7 +283,20 @@ void buttons_init()
         return;
     }
     
-    /*
+
+    button_handle_t st_offset_decr_btn_handle = iot_button_create(&st_offset_decr_btn);
+    if (st_offset_decr_btn_handle == NULL) {
+        ESP_LOGE(TAG, "Button create failed");
+        return;
+    }
+    
+    err = iot_button_register_cb(st_offset_decr_btn_handle, BUTTON_SINGLE_CLICK, button_test_cb, NULL);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Button event registration failed");
+        return;
+    }
+
+
     button_handle_t th_coeff_incr_btn_handle = iot_button_create(&th_coeff_incr_btn);
     if (th_coeff_incr_btn_handle == NULL) {
         ESP_LOGE(TAG, "Button create failed");
@@ -299,7 +319,6 @@ void buttons_init()
         ESP_LOGE(TAG, "Button event registration failed");
         return;
     }
-    */
 
     ESP_LOGI(TAG, "Buttons initialization completed");
 }
